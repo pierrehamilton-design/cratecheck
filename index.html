@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crate Check</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 font-sans">
+    <div id="app" class="max-w-md mx-auto p-6">
+        <header class="mb-8">
+            <h1 class="text-4xl font-black tracking-tighter text-orange-500">CRATE CHECK</h1>
+            <p class="text-zinc-500 text-sm">Don't buy Dr. John twice.</p>
+        </header>
+
+        <div class="space-y-4 mb-8">
+            <input v-model="search" type="text" placeholder="Search Artist or Album..." 
+                class="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500 transition">
+            
+            <button @click="onlyTT = !onlyTT" 
+                :class="onlyTT ? 'bg-orange-500 text-black' : 'bg-zinc-800 text-zinc-400'"
+                class="w-full py-3 rounded-xl font-bold transition flex items-center justify-center gap-2">
+                <span>{{ onlyTT ? '★ Showing Through-and-Throughs' : 'Show All Albums' }}</span>
+            </button>
+        </div>
+
+        <div class="space-y-3">
+            <div v-for="record in filteredRecords" :key="record.album" 
+                class="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 flex justify-between items-center">
+                <div class="flex-1 pr-4">
+                    <h3 class="font-bold text-lg leading-tight">{{ record.album }}</h3>
+                    <p class="text-zinc-500 text-sm italic">{{ record.artist }}</p>
+                </div>
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <span :class="record.owned ? 'bg-green-900/30 text-green-400 border-green-800' : 'bg-zinc-800 text-zinc-500 border-zinc-700'" 
+                        class="text-[10px] font-bold px-2 py-0.5 rounded border">
+                        {{ record.owned ? 'OWNED' : 'WANT' }}
+                    </span>
+                    <span v-if="record.throughAndThrough" class="text-orange-500 text-xl leading-none">★</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue
+        createApp({
+            data() {
+                return {
+                    search: '',
+                    onlyTT: false,
+                    // ADD YOUR RECORDS HERE
+                    records: [
+                        { artist: "Dr. John", album: "Gris-Gris", owned: true, throughAndThrough: true },
+                        { artist: "Fleetwood Mac", album: "Rumours", owned: true, throughAndThrough: true },
+                        { artist: "The Beatles", album: "Revolver", owned: false, throughAndThrough: true },
+                        { artist: "Miles Davis", album: "Kind of Blue", owned: true, throughAndThrough: true },
+                        { artist: "Tame Impala", album: "Currents", owned: false, throughAndThrough: false }
+                    ]
+                }
+            },
+            computed: {
+                filteredRecords() {
+                    return this.records.filter(r => {
+                        const matchSearch = r.artist.toLowerCase().includes(
