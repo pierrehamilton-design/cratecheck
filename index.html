@@ -2,65 +2,109 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crate Check</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Crate Check Pro</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
 </head>
 <body class="bg-zinc-950 text-zinc-100 font-sans">
-    <div id="app" class="max-w-md mx-auto p-6">
-        <header class="mb-8">
-            <h1 class="text-4xl font-black tracking-tighter text-orange-500">CRATE CHECK</h1>
-            <p class="text-zinc-500 text-sm">Don't buy Dr. John twice.</p>
+    <div id="app" class="max-w-md mx-auto p-6 pb-24">
+        <header class="mb-8 flex justify-between items-center">
+            <div>
+                <h1 class="text-4xl font-black tracking-tighter text-orange-500 uppercase">Crate Check</h1>
+                <p class="text-zinc-500 text-xs tracking-widest uppercase">Global Inventory</p>
+            </div>
+            <button @click="showModal = true" class="bg-orange-500 text-black w-12 h-12 rounded-full text-3xl font-bold shadow-lg shadow-orange-500/20">+</button>
         </header>
 
-        <div class="space-y-4 mb-8">
-            <input v-model="search" type="text" placeholder="Search Artist or Album..." 
-                class="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-2xl focus:outline-none focus:ring-2 focus:ring-orange-500 transition">
-            
-            <button @click="onlyTT = !onlyTT" 
-                :class="onlyTT ? 'bg-orange-500 text-black' : 'bg-zinc-800 text-zinc-400'"
-                class="w-full py-3 rounded-xl font-bold transition flex items-center justify-center gap-2">
-                <span>{{ onlyTT ? '★ Showing Through-and-Throughs' : 'Show All Albums' }}</span>
-            </button>
+        <input v-model="search" type="text" placeholder="Search the crates..." 
+            class="w-full p-4 bg-zinc-900 border border-zinc-800 rounded-2xl mb-6 focus:outline-none focus:ring-2 focus:ring-orange-500">
+
+        <div v-if="loading" class="text-center text-zinc-500 py-10">Loading your collection...</div>
+        <div v-else class="space-y-3">
+            <div v-for="r in filteredRecords" class="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-lg leading-tight">{{ r.album }}</h3>
+                    <p class="text-zinc-500 text-sm italic">{{ r.artist }}</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span v-if="r.tt === 'TRUE' || r.tt === true" class="text-orange-500 text-xl">★</span>
+                    <span :class="r.owned === 'TRUE' || r.owned === true ? 'text-green-500' : 'text-zinc-600'" class="text-[10px] font-black border border-current px-2 py-0.5 rounded">
+                        {{ r.owned === 'TRUE' || r.owned === true ? 'OWNED' : 'WANT' }}
+                    </span>
+                </div>
+            </div>
         </div>
 
-        <div class="space-y-3">
-            <div v-for="record in filteredRecords" :key="record.album" 
-                class="p-4 bg-zinc-900 rounded-2xl border border-zinc-800 flex justify-between items-center">
-                <div class="flex-1 pr-4">
-                    <h3 class="font-bold text-lg leading-tight">{{ record.album }}</h3>
-                    <p class="text-zinc-500 text-sm italic">{{ record.artist }}</p>
-                </div>
-                <div class="flex flex-col items-end gap-2 shrink-0">
-                    <span :class="record.owned ? 'bg-green-900/30 text-green-400 border-green-800' : 'bg-zinc-800 text-zinc-500 border-zinc-700'" 
-                        class="text-[10px] font-bold px-2 py-0.5 rounded border">
-                        {{ record.owned ? 'OWNED' : 'WANT' }}
-                    </span>
-                    <span v-if="record.throughAndThrough" class="text-orange-500 text-xl leading-none">★</span>
+        <div v-if="showModal" class="fixed inset-0 bg-black/90 flex items-center justify-center p-6 z-50">
+            <div class="bg-zinc-900 border border-zinc-800 p-6 rounded-3xl w-full max-w-sm">
+                <h2 class="text-xl font-bold mb-4">Add to Collection</h2>
+                <div class="space-y-4">
+                    <input v-model="newRecord.artist" placeholder="Artist" class="w-full p-3 bg-zinc-800 rounded-xl outline-none">
+                    <input v-model="newRecord.album" placeholder="Album Title" class="w-full p-3 bg-zinc-800 rounded-xl outline-none">
+                    
+                    <label class="flex items-center gap-3 bg-zinc-800 p-3 rounded-xl">
+                        <input type="checkbox" v-model="newRecord.owned" class="w-5 h-5 accent-orange-500">
+                        <span>I own this</span>
+                    </label>
+                    
+                    <label class="flex items-center gap-3 bg-zinc-800 p-3 rounded-xl">
+                        <input type="checkbox" v-model="newRecord.tt" class="w-5 h-5 accent-orange-500">
+                        <span>Through-and-Through ★</span>
+                    </label>
+
+                    <div class="flex gap-3 pt-2">
+                        <button @click="showModal = false" class="flex-1 py-3 text-zinc-500">Cancel</button>
+                        <button @click="saveRecord" class="flex-1 py-3 bg-orange-500 text-black font-bold rounded-xl">Save</button>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
     <script>
+        const API_URL = 'https://sheetdb.io/api/v1/lw3wo9zwi5xfd'; // <--- PASTE YOUR LINK HERE
+
         const { createApp } = Vue
         createApp({
             data() {
                 return {
+                    loading: true,
+                    showModal: false,
                     search: '',
-                    onlyTT: false,
-                    // ADD YOUR RECORDS HERE
-                    records: [
-                        { artist: "Dr. John", album: "Gris-Gris", owned: true, throughAndThrough: true },
-                        { artist: "Fleetwood Mac", album: "Rumours", owned: true, throughAndThrough: true },
-                        { artist: "The Beatles", album: "Revolver", owned: false, throughAndThrough: true },
-                        { artist: "Miles Davis", album: "Kind of Blue", owned: true, throughAndThrough: true },
-                        { artist: "Tame Impala", album: "Currents", owned: false, throughAndThrough: false }
-                    ]
+                    records: [],
+                    newRecord: { artist: '', album: '', owned: false, tt: false }
                 }
             },
             computed: {
                 filteredRecords() {
-                    return this.records.filter(r => {
-                        const matchSearch = r.artist.toLowerCase().includes(
+                    return this.records.filter(r => 
+                        r.artist.toLowerCase().includes(this.search.toLowerCase()) || 
+                        r.album.toLowerCase().includes(this.search.toLowerCase())
+                    )
+                }
+            },
+            methods: {
+                async fetchData() {
+                    const res = await fetch(API_URL);
+                    this.records = await res.json();
+                    this.loading = false;
+                },
+                async saveRecord() {
+                    const res = await fetch(API_URL, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ data: [this.newRecord] })
+                    });
+                    if(res.ok) {
+                        this.records.push({...this.newRecord});
+                        this.showModal = false;
+                        this.newRecord = { artist: '', album: '', owned: false, tt: false };
+                    }
+                }
+            },
+            mounted() { this.fetchData() }
+        }).mount('#app')
+    </script>
+</body>
+</html>
